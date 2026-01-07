@@ -29,7 +29,7 @@ def run_pipeline(test_map, dependency_graph, baseline=False):
             changed_files.extend(files)
 
 
-    cache_key = "_".join(changed_files)
+    cache_key = generate_cache_key(changed_files)
 
     cached = load_cache(cache_key)
     if cached:
@@ -54,3 +54,10 @@ def run_pipeline(test_map, dependency_graph, baseline=False):
 
     save_cache(cache_key, result)
     return result
+
+import hashlib
+
+def generate_cache_key(files):
+    normalized = sorted([f.replace("\\", "/") for f in files])
+    joined = "|".join(normalized)
+    return hashlib.md5(joined.encode()).hexdigest()
