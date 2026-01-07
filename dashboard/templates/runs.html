@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CI Run History</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <h2>CI Execution History</h2>
+
+    <table>
+        <tr>
+            <th>Run ID</th>
+            <th>Tests Executed</th>
+            <th>Time Taken (s)</th>
+            <th>Cache Hit</th>
+        </tr>
+        {% for r in runs %}
+        <tr>
+            <td>{{ r[0] }}</td>
+            <td>{{ r[1] }}</td>
+            <td>{{ "%.2f"|format(r[2]) }}</td>
+            <td>{{ "Yes" if r[3] else "No" }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+
+    <br>
+    <a href="/">Back to Dashboard</a>
+</body>
+</html>

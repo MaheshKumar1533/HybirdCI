@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>HYBRIDCI Dashboard</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+</head>
+<body>
+    <h1>HYBRIDCI – CI Optimization Dashboard</h1>
+    <div class="card">
+        <p>Average CI Time: {{ avg_time }} seconds</p>
+        <p>Average Tests Executed: {{ avg_tests }}</p>
+    </div>
+    <a href="/run">Run CI Pipeline</a>
+</body>
+<canvas id="ciChart" width="400" height="200"></canvas>
+
+<script>
+const ctx = document.getElementById('ciChart');
+new Chart(ctx, {
+    type: 'line',
+    data: {
+        labels: [...Array({{ times|length }}).keys()],
+        datasets: [{
+            label: 'CI Runtime (seconds)',
+            data: {{ times }},
+        }]
+    }
+});
+</script>
+
+</html>
