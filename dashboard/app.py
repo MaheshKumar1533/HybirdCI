@@ -1,7 +1,17 @@
+import sys
+import os
+from pathlib import Path
+
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 from flask import Flask, render_template, jsonify
 from ci_engine.pipeline_runner import run_pipeline
-from dashboard.models import init_db
+from ci_engine.cache_manager import get_cache_stats
+from ci_engine.language_utils import get_language_stats, get_changed_languages
+from dashboard.models import init_db, store_run_result, get_runs, get_cache_statistics
 import sqlite3
+import json
 
 app = Flask(__name__)
 init_db()
@@ -24,22 +34,28 @@ def run_ci():
     print("TEST_MAP:", TEST_MAP)
 
     try:
-        result = run_pipeline(TEST_MAP, DEP_GRAPH)
+        result = run_pipeline(TEST_MAP, DEP_GRAPH, language_aware=True)
 
-        conn = sqlite3.connect("ci.db")
-        c = conn.cursor()
-        c.execute(
-            "INSERT INTO runs (tests_run, time_taken, cache_hit) VALUES (?, ?, ?)",
-            (len(result["tests"]), float(result["time"]), int(result["cache_hit"]))
+        # Store result with language information
+        languages = result.get("languages")
+        language_breakdown = result.get("language_breakdown")
+        store_run_result(
+            len(result["tests"]),
+            float(result["time"]),
+            int(result["cache_hit"]),
+            mode=result.get("mode", "hybrid"),
+            languages=json.dumps(languages) if languages else None,
+            language_breakdown=json.dumps(language_breakdown) if language_breakdown else None
         )
-        conn.commit()
-        conn.close()
 
         return jsonify({
             "status": "success",
             "tests": result["tests"],
             "time": result["time"],
-            "cache_hit": result["cache_hit"]
+            "cache_hit": result["cache_hit"],
+            "mode": result.get("mode"),
+            "languages": result.get("languages"),
+            "language_breakdown": result.get("language_breakdown")
         })
 
     except Exception as e:
@@ -52,21 +68,48 @@ def run_ci():
 
 @app.route("/runs")
 def runs():
-    conn = sqlite3.connect("ci.db")
-    c = conn.cursor()
-    c.execute(
-        "SELECT id, tests_run, time_taken, cache_hit FROM runs ORDER BY id DESC"
-    )
-    rows = c.fetchall()
-    conn.close()
+    rows = get_runs()
+    
+    # Parse language data for display
+    runs_formatted = []
+    for r in rows:
+        run_data = {
+            "id": r[0],
+            "tests_run": r[1],
+            "time_taken": r[2],
+            "cache_hit": r[3],
+            "mode": r[4],
+            "languages": r[5],
+            "language_breakdown": r[6]
+        }
+        runs_formatted.append(run_data)
 
-    return render_template("runs.html", runs=rows)
+    return render_template("runs.html", runs=runs_formatted)
 
 @app.route("/baseline")
 def run_baseline():
     result = run_pipeline(TEST_MAP, DEP_GRAPH, baseline=True)
     return jsonify(result)
 
+@app.route("/cache-stats")
+def cache_stats_page():
+    """Render cache statistics dashboard page."""
+    return render_template("cache_stats.html")
+
+@app.route("/cache-stats-api")
+def cache_stats():
+    """API endpoint for cache statistics including language breakdown."""
+    cache_stats = get_cache_stats()
+    db_stats = get_cache_statistics()
+    lang_stats = get_language_stats()
+    changed_langs = get_changed_languages()
+    
+    return jsonify({
+        "cache": cache_stats,
+        "database": db_stats,
+        "project_languages": lang_stats,
+        "recently_changed_languages": changed_langs
+    })
 
 @app.route("/")
 def index():
@@ -80,7 +123,20 @@ def index():
 
     c.execute("SELECT AVG(time_taken), AVG(tests_run) FROM runs")
     avg_time, avg_tests = c.fetchone()
-    return render_template("index.html", avg_time=avg_time, avg_tests=avg_tests, times=times, tests=tests)
+    
+    # Get cache statistics
+    cache_stats = get_cache_statistics()
+    
+    conn.close()
+    
+    return render_template(
+        "index.html",
+        avg_time=avg_time,
+        avg_tests=avg_tests,
+        times=times,
+        tests=tests,
+        cache_stats=cache_stats
+    )
 
 if __name__ == "__main__":
     app.run(debug=True)

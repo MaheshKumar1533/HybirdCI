@@ -1,30 +1,57 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>CI Run History</title>
-    <link rel="stylesheet" href="/static/style.css">
-</head>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    
+    </head>
 <body>
-    <h2>CI Execution History</h2>
+    <div class="container">
+        <header class="site-header flex space-between">
+            <h2 class="site-title" style="margin:0">CI Execution History</h2>
+            <div class="actions">
+                <a class="btn" href="/">Back to Dashboard</a>
+            </div>
+        </header>
 
-    <table>
-        <tr>
-            <th>Run ID</th>
-            <th>Tests Executed</th>
-            <th>Time Taken (s)</th>
-            <th>Cache Hit</th>
-        </tr>
-        {% for r in runs %}
-        <tr>
-            <td>{{ r[0] }}</td>
-            <td>{{ r[1] }}</td>
-            <td>{{ "%.2f"|format(r[2]) }}</td>
-            <td>{{ "Yes" if r[3] else "No" }}</td>
-        </tr>
-        {% endfor %}
-    </table>
-
-    <br>
-    <a href="/">Back to Dashboard</a>
+        <section class="card" style="padding: 0;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Run ID</th>
+                        <th>Tests Executed</th>
+                        <th>Time Taken (s)</th>
+                        <th>Cache Hit</th>
+                        <th>Mode</th>
+                        <th>Languages</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for r in runs %}
+                    <tr>
+                        <td>{{ r.id }}</td>
+                        <td>{{ r.tests_run }}</td>
+                        <td>{{ "%.2f"|format(r.time_taken) }}</td>
+                        <td>
+                            <span class="badge {{ 'success' if r.cache_hit else 'neutral' }}">{{ 'Yes' if r.cache_hit else 'No' }}</span>
+                        </td>
+                        <td>
+                            <span class="badge" style="background: rgba(91, 140, 255, 0.15); color: #5b8cff;">{{ r.mode or 'hybrid' }}</span>
+                        </td>
+                        <td>
+                            {% if r.languages %}
+                                <span class="muted" style="font-size:0.85rem;">{{ r.languages }}</span>
+                            {% else %}
+                                <span class="muted" style="font-size:0.85rem;">N/A</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </section>
+    </div>
 </body>
 </html>
